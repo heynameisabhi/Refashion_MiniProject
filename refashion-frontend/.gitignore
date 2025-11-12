@@ -1,0 +1,30 @@
+# dependencies
+refashion-frontend/node_modules/
+
+# production
+refashion-frontend/dist/
+refashion-frontend/build/
+
+# misc
+refashion-frontend/.DS_Store
+refashion-frontend/.env
+refashion-frontend/.env.local
+refashion-frontend/.env.development.local
+refashion-frontend/.env.test.local
+refashion-frontend/.env.production.local
+
+# logs
+refashion-frontend/npm-debug.log*
+refashion-frontend/yarn-debug.log*
+refashion-frontend/yarn-error.log*
+refashion-frontend/pnpm-debug.log*
+refashion-frontend/.pnpm-store
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
