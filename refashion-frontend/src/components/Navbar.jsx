@@ -7,6 +7,7 @@ const navItems = [
   { to: '/upload', label: 'Upload' },
   { to: '/bag', label: 'My Bags', showBadge: true },
   { to: '/marketplace', label: 'Marketplace' },
+  { to: '/recyclers', label: 'Recyclers' },
   { to: '/rewards', label: 'Rewards' },
   { to: '/profile', label: 'Profile' },
   { to: '/settings', label: 'Settings' },

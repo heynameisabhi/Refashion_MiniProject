@@ -5,46 +5,112 @@ import { itemService } from '../api/springBootService.js';
 import ItemCard from '../components/ItemCard.jsx';
 import Button from '../components/Button.jsx';
 import { useBag } from '../hooks/useBag.js';
+import { useRewards } from '../context/RewardsContext.jsx';
+import useAuth from '../hooks/useAuth.js';
 
 const MarketplacePage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { bags, counts } = useBag();
+  const { points, deductPoints } = useRewards();
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({ brand: 'all', category: 'all' });
+  const [purchasingItem, setPurchasingItem] = useState(null);
+
+  const handlePurchase = async (item) => {
+    if (!user || user.guest) {
+      alert('Please login to make purchases');
+      navigate('/login');
+      return;
+    }
+
+    const itemPrice = Math.ceil(item.price * 10); // Convert price to points (₹1 = 10 points)
+    
+    if (points < itemPrice) {
+      alert(`Insufficient points! You need ${itemPrice} points but have ${points} points.`);
+      return;
+    }
+
+    if (window.confirm(`Purchase ${item.title} for ${itemPrice} points?`)) {
+      try {
+        setPurchasingItem(item.id);
+        deductPoints(itemPrice, `Purchased ${item.title}`);
+        alert(`Successfully purchased ${item.title}! ${itemPrice} points deducted.`);
+        // Remove item from marketplace
+        setItems(prev => prev.filter(i => i.id !== item.id));
+      } catch (error) {
+        alert('Purchase failed: ' + error.message);
+      } finally {
+        setPurchasingItem(null);
+      }
+    }
+  };
 
   useEffect(() => {
     const fetchItems = async () => {
       setIsLoading(true);
       setError('');
       try {
-        // Get current user
-        const storedUser = localStorage.getItem('refashion_user');
-        const currentUser = storedUser ? JSON.parse(storedUser) : null;
-        const isGuest = !currentUser || currentUser.guest;
-
-        // Get local listings
+        // Get local listings (marketplace shows ALL items from ALL users)
         let localListings = JSON.parse(localStorage.getItem('marketplace_listings') || '[]');
         
-        // Filter listings based on user type
-        if (!isGuest) {
-          // Logged-in users: exclude guest listings
-          localListings = localListings.filter(item => {
-            const itemUserId = item.userId || 'guest';
-            return itemUserId !== 'guest' && !itemUserId.includes('guest');
-          });
-        }
-        // Guests see all listings (including their own and other users')
+        // Ensure local listings have image_url (convert images array to image_url)
+        localListings = localListings.map(item => ({
+          ...item,
+          image_url: item.image_url || (item.images && item.images[0]) || null
+        }));
         
         // Try to fetch from Spring Boot backend
         try {
           const response = await itemService.getMarketplaceItems();
-          const backendItems = response.success ? response.data : [];
+          console.log('Spring Boot marketplace response:', response);
+          let backendItems = (response.success && Array.isArray(response.data)) ? response.data : [];
+          
+          // Transform Spring Boot items to match ItemCard format
+          backendItems = backendItems.map(item => {
+            // Generate placeholder image based on item type
+            const getPlaceholderImage = (itemType) => {
+              const type = (itemType || '').toLowerCase();
+              if (type.includes('shirt') || type.includes('t-shirt')) {
+                return 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop';
+              } else if (type.includes('jeans') || type.includes('pants')) {
+                return 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=400&fit=crop';
+              } else if (type.includes('dress')) {
+                return 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=400&fit=crop';
+              } else if (type.includes('jacket') || type.includes('coat')) {
+                return 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&h=400&fit=crop';
+              } else if (type.includes('shoe')) {
+                return 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=400&h=400&fit=crop';
+              } else {
+                return 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400&h=400&fit=crop';
+              }
+            };
+
+            return {
+              id: item.itemId,
+              title: item.itemType || 'Item',
+              brand: item.bagName || 'ReFashion',
+              condition: item.grade || 'A',
+              category: item.gender || 'Unisex',
+              price: (item.loyaltyPoint || 0) / 10, // Convert points to price
+              description: item.conditionDescription || 'No description',
+              image_url: getPlaceholderImage(item.itemType),
+              userId: item.contributorId,
+              userName: item.contributorName,
+              ageGroup: item.ageGroup,
+              status: item.status
+            };
+          });
           
           // Combine local and backend items
-          setItems([...localListings, ...backendItems]);
+          console.log('Local listings:', localListings.length, 'Backend items:', backendItems.length);
+          const allItems = [...localListings, ...backendItems];
+          console.log('Total items to display:', allItems.length);
+          setItems(allItems);
         } catch (err) {
+          console.error('Spring Boot backend error:', err);
           console.log('Spring Boot backend not available, using local items only');
           // If Spring Boot backend fails, try FastAPI backend
           try {
@@ -133,11 +199,29 @@ const MarketplacePage = () => {
         </div>
       )}
 
+      {/* Wallet Balance Banner */}
+      {user && !user.guest && (
+        <div className="rounded-2xl border border-brand/30 bg-gradient-to-r from-brand-light to-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">💰</span>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Your Wallet Balance</p>
+                <p className="text-2xl font-bold text-brand">{points} Points</p>
+              </div>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => navigate('/rewards')}>
+              View Wallet
+            </Button>
+          </div>
+        </div>
+      )}
+
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold text-gray-900">Marketplace</h1>
           <p className="text-sm text-gray-600">
-            Discover community listings and give second-hand pieces a brand-new story.
+            Shop with your points! 10 points = ₹1
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -199,9 +283,75 @@ const MarketplacePage = () => {
             </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredItems.map((item) => (
-                <ItemCard key={item.id ?? `${item.title}-${item.brand}`} item={item} />
-              ))}
+              {filteredItems.map((item) => {
+                const itemPrice = Math.ceil(item.price * 10); // Convert to points
+                const canAfford = points >= itemPrice;
+                
+                return (
+                  <article
+                    key={item.id ?? `${item.title}-${item.brand}`}
+                    className="group flex flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                  >
+                    <div className="relative h-48 overflow-hidden bg-gray-100">
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.title}
+                          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center bg-brand-light text-brand-dark">
+                          <span className="text-sm font-medium">No Image</span>
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2 rounded-full bg-brand px-3 py-1 text-sm font-bold text-white shadow-lg">
+                        ₹{parseFloat(item.price).toFixed(2)}
+                      </div>
+                      <div className="absolute bottom-2 right-2 rounded-full bg-yellow-400 px-3 py-1 text-xs font-bold text-gray-900 shadow-lg">
+                        {itemPrice} pts
+                      </div>
+                    </div>
+                    <div className="flex flex-1 flex-col space-y-2 p-4">
+                      <h3 className="text-lg font-semibold text-gray-900">{item.title}</h3>
+                      {item.description && (
+                        <p className="line-clamp-2 text-sm text-gray-600">{item.description}</p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                        {item.brand && <span className="rounded-full bg-gray-100 px-2 py-1">{item.brand}</span>}
+                        {item.condition && (
+                          <span className="rounded-full bg-gray-100 px-2 py-1 capitalize">{item.condition}</span>
+                        )}
+                        {item.category && (
+                          <span className="rounded-full bg-gray-100 px-2 py-1 capitalize">{item.category}</span>
+                        )}
+                      </div>
+                      
+                      {/* Purchase Button */}
+                      <div className="mt-auto pt-3">
+                        <Button
+                          onClick={() => handlePurchase(item)}
+                          disabled={!canAfford || purchasingItem === item.id}
+                          className="w-full"
+                          variant={canAfford ? 'primary' : 'secondary'}
+                        >
+                          {purchasingItem === item.id ? (
+                            'Processing...'
+                          ) : canAfford ? (
+                            `🛍️ Buy with ${itemPrice} Points`
+                          ) : (
+                            `Need ${itemPrice - points} more points`
+                          )}
+                        </Button>
+                        {!canAfford && (
+                          <p className="mt-1 text-center text-xs text-gray-500">
+                            You have {points} points
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>

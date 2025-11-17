@@ -8,7 +8,7 @@ import lombok.Data;
 public class UserRegistrationRequest {
 
     @NotBlank(message = "Name is Required")
-    private String UserName;
+    private String name;
 
     @Email(message = "Invalid email format")
     @NotBlank(message = "Email is required")
@@ -16,7 +16,7 @@ public class UserRegistrationRequest {
 
     // Optional fields for later updates
     private String phoneNumber;
-    private String addressText;
+    private String address;
     private Double latitude;
     private Double longitude;
 

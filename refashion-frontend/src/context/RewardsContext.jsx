@@ -82,6 +82,7 @@ export const RewardsProvider = ({ children }) => {
         {
           id: Date.now(),
           action,
+          type: 'earn',
           points: pointsEarned,
           description,
           timestamp: Date.now(),
@@ -97,6 +98,33 @@ export const RewardsProvider = ({ children }) => {
     return pointsEarned;
   }, []);
 
+  const deductPoints = useCallback((pointsToDeduct, description) => {
+    setRewards((prev) => {
+      if (prev.points < pointsToDeduct) {
+        throw new Error('Insufficient points');
+      }
+
+      const newHistory = [
+        ...prev.history,
+        {
+          id: Date.now(),
+          action: 'PURCHASE',
+          type: 'purchase',
+          points: pointsToDeduct,
+          description,
+          timestamp: Date.now(),
+        },
+      ];
+
+      return {
+        points: prev.points - pointsToDeduct,
+        history: newHistory,
+      };
+    });
+
+    return true;
+  }, []);
+
   const resetPoints = useCallback(() => {
     setRewards({ points: 0, history: [] });
   }, []);
@@ -106,10 +134,11 @@ export const RewardsProvider = ({ children }) => {
       points: rewards.points,
       history: rewards.history,
       addPoints,
+      deductPoints,
       resetPoints,
       POINTS,
     }),
-    [rewards, addPoints, resetPoints],
+    [rewards, addPoints, deductPoints, resetPoints],
   );
 
   return <RewardsContext.Provider value={value}>{children}</RewardsContext.Provider>;

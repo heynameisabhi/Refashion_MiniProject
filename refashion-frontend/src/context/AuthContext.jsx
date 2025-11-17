@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import axiosInstance, { getStoredAuth, setAuthToken, setUser } from '../api/axiosConfig.js';
+import { userService } from '../api/springBootService.js';
 
 const AuthContext = createContext(null);
 
@@ -18,9 +19,30 @@ export const AuthProvider = ({ children }) => {
     setIsLoading(true);
     setError(null);
     try {
-      // Check for default credentials
+      // Try Spring Boot authentication first
+      try {
+        console.log('Attempting Spring Boot login with:', credentials.email);
+        const response = await userService.login(credentials);
+        console.log('Spring Boot login response:', response);
+        
+        if (response.success && response.data) {
+          const { token, user } = response.data;
+          const formattedUser = {
+            id: user.userId,
+            email: user.email,
+            name: user.name,
+            guest: false,
+          };
+          syncState(token, formattedUser);
+          return { success: true };
+        }
+      } catch (springBootErr) {
+        console.log('Spring Boot auth failed:', springBootErr.message);
+        // Continue to fallback
+      }
+
+      // Fallback: Check for default credentials
       if (credentials.email === 'test@gmail.com' && credentials.password === 'test') {
-        // Auto-login with default credentials
         const defaultUser = {
           id: 'test-user-123',
           email: 'test@gmail.com',
@@ -31,31 +53,18 @@ export const AuthProvider = ({ children }) => {
         return { success: true };
       }
 
-      // Try backend login
-      try {
-        const { data } = await axiosInstance.post('/login', credentials);
-        const receivedToken =
-          data?.token ?? data?.access_token ?? data?.jwt ?? data?.data?.token ?? null;
-        const receivedUser = data?.user ?? data?.profile ?? (data?.email ? data : null);
-        if (!receivedUser) {
-          throw new Error('Login response missing user details.');
-        }
-        syncState(receivedToken, receivedUser);
-        return { success: true };
-      } catch (backendErr) {
-        // If backend fails, accept any credentials for demo purposes
-        const demoUser = {
-          id: `user-${Date.now()}`,
-          email: credentials.email,
-          name: credentials.email.split('@')[0],
-          guest: false,
-        };
-        syncState(`token-${Date.now()}`, demoUser);
-        return { success: true };
-      }
+      // Final fallback: Accept any credentials for demo
+      const demoUser = {
+        id: `user-${Date.now()}`,
+        email: credentials.email,
+        name: credentials.email.split('@')[0],
+        guest: false,
+      };
+      syncState(`token-${Date.now()}`, demoUser);
+      return { success: true };
     } catch (err) {
       const message =
-        err?.response?.data?.detail || err?.message || 'Unable to login. Please try again.';
+        err?.response?.data?.message || err?.message || 'Unable to login. Please try again.';
       setError(message);
       return { success: false, error: message };
     } finally {

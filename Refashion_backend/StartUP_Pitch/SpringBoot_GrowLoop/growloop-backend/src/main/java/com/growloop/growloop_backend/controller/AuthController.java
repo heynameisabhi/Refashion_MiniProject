@@ -37,17 +37,17 @@ public class AuthController {
             }
 
             // Find user by email
-            User user = userRepository.findByEmailId(email).orElse(null);
+            User user = userRepository.findByEmail(email).orElse(null);
 
             if (user == null) {
                 // Auto-create user if doesn't exist (for demo purposes)
                 user = new User();
-                user.setEmailId(email);
+                user.setEmail(email);
                 user.setUserName(email.split("@")[0]);
                 user.setFirebaseUid("local-" + UUID.randomUUID().toString());
                 user.setCreatedAt(LocalDateTime.now());
                 user.setUpdatedAt(LocalDateTime.now());
-                user.setLoyaltyPointBalance(0);
+                user.setLoyaltyPoint(0);
                 user.setIsVerified(false);
                 user.setIsPremium(false);
                 user = userRepository.save(user);
@@ -73,7 +73,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> signup(@RequestBody UserRegistrationRequest request) {
         try {
             // Check if user already exists
-            if (userRepository.findByEmailId(request.getEmail()).isPresent()) {
+            if (userRepository.findByEmail(request.getEmail()).isPresent()) {
                 return ResponseEntity.badRequest().body(
                     ApiResponse.error("User with this email already exists")
                 );
@@ -81,14 +81,14 @@ public class AuthController {
 
             // Create new user
             User user = new User();
-            user.setEmailId(request.getEmail());
+            user.setEmail(request.getEmail());
             user.setUserName(request.getName());
             user.setPhoneNumber(request.getPhoneNumber());
             user.setAddressText(request.getAddress());
             user.setFirebaseUid("local-" + UUID.randomUUID().toString());
             user.setCreatedAt(LocalDateTime.now());
             user.setUpdatedAt(LocalDateTime.now());
-            user.setLoyaltyPointBalance(0);
+            user.setLoyaltyPoint(0);
             user.setIsVerified(false);
             user.setIsPremium(false);
 
@@ -133,16 +133,6 @@ public class AuthController {
 
     // Helper method to convert User entity to DTO
     private UserResponseDTO convertToDTO(User user) {
-        UserResponseDTO dto = new UserResponseDTO();
-        dto.setUserId(user.getUserId());
-        dto.setName(user.getUserName());
-        dto.setEmail(user.getEmailId());
-        dto.setPhoneNumber(user.getPhoneNumber());
-        dto.setAddress(user.getAddressText());
-        dto.setLoyaltyPoints(user.getLoyaltyPointBalance());
-        dto.setIsVerified(user.getIsVerified());
-        dto.setIsPremium(user.getIsPremium());
-        dto.setCreatedAt(user.getCreatedAt());
-        return dto;
+        return UserResponseDTO.fromUser(user);
     }
 }

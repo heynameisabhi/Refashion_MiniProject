@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Button from '../components/Button.jsx';
 import useAuth from '../hooks/useAuth.js';
+import { userService } from '../api/springBootService.js';
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -43,17 +44,45 @@ const SignupPage = () => {
     setIsLoading(true);
 
     try {
-      // For demo purposes, we'll just log them in
-      // In a real app, you'd call a signup API endpoint first
-      const result = await login({ email: form.email, password: form.password });
-      
-      if (result.success) {
-        navigate('/upload', { replace: true });
+      // Call Spring Boot signup API
+      console.log('Calling Spring Boot signup with:', {
+        name: form.name,
+        email: form.email,
+        phoneNumber: '',
+        address: ''
+      });
+
+      const response = await userService.register({
+        name: form.name,
+        email: form.email,
+        phoneNumber: '',
+        address: ''
+      });
+
+      console.log('Signup response:', response);
+
+      if (response.success && response.data) {
+        const { token, user } = response.data;
+        
+        // Store token and user info
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        // Auto-login after successful signup
+        const loginResult = await login({ email: form.email, password: form.password });
+        
+        if (loginResult.success) {
+          navigate('/upload', { replace: true });
+        } else {
+          setFormError('Account created but login failed. Please try logging in manually.');
+        }
       } else {
-        setFormError(result.error || 'Signup failed. Please try again.');
+        setFormError(response.message || 'Signup failed. Please try again.');
       }
     } catch (error) {
-      setFormError('An error occurred. Please try again.');
+      console.error('Signup error:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'An error occurred. Please try again.';
+      setFormError(errorMessage);
     } finally {
       setIsLoading(false);
     }

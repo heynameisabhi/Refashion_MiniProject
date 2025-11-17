@@ -1,209 +1,190 @@
-import { useEffect, useState } from 'react';
-import axiosInstance from '../api/axiosConfig.js';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Button from '../components/Button.jsx';
 import useAuth from '../hooks/useAuth.js';
-
-const defaultStats = {
-  items_uploaded: 0,
-  items_sold: 0,
-  co2_saved_kg: 0,
-};
+import { useRewards } from '../context/RewardsContext.jsx';
 
 const ProfilePage = () => {
-  const { user, updateUserContext } = useAuth();
-  const [profile, setProfile] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', bio: '', location: '' });
-  const [successMessage, setSuccessMessage] = useState('');
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { history, points } = useRewards();
+  const [activeTab, setActiveTab] = useState('overview');
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      setIsLoading(true);
-      setError('');
-      try {
-        const { data } = await axiosInstance.get('/profile');
-        setProfile(data);
-        setForm({
-          name: data?.name ?? '',
-          email: data?.email ?? '',
-          bio: data?.bio ?? '',
-          location: data?.location ?? '',
-        });
-      } catch (err) {
-        const message = err?.response?.data?.detail || 'Unable to load your profile.';
-        setError(message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (!user?.guest) {
-      fetchProfile().catch(() => setIsLoading(false));
-    } else {
-      setProfile({
-        name: 'Guest User',
-        email: 'guest@refashion.app',
-        points: 0,
-        stats: defaultStats,
-      });
-    }
-  }, [user]);
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setSuccessMessage('');
-    setError('');
-    try {
-      const { data } = await axiosInstance.put('/update_profile', form);
-      setProfile((prev) => ({ ...prev, ...data }));
-      updateUserContext({ ...(user ?? {}), ...data });
-      setSuccessMessage('Profile updated successfully!');
-      setIsEditing(false);
-    } catch (err) {
-      const message = err?.response?.data?.detail || 'Could not update profile. Please try again.';
-      setError(message);
-    }
-  };
-
-  const stats = profile?.stats ?? defaultStats;
+  // Calculate statistics
+  const purchases = history.filter(item => item.type === 'purchase');
+  const totalSpent = purchases.reduce((sum, p) => sum + p.points, 0);
+  const donations = history.filter(item => item.action === 'DONATION').length;
+  const recycles = history.filter(item => item.action === 'RECYCLE').length;
+  const resells = history.filter(item => item.action === 'RESELL').length;
+  const listings = history.filter(item => item.action === 'CREATE_LISTING').length;
 
   return (
     <section className="space-y-8">
       <header className="space-y-3">
         <h1 className="text-3xl font-semibold text-gray-900">Your Profile</h1>
-        <p className="text-sm text-gray-600">Manage your account info and track your sustainability impact.</p>
+        <p className="text-sm text-gray-600">Manage your account, view purchases, and track your impact.</p>
       </header>
 
-      {isLoading && (
-        <div className="rounded-3xl border border-gray-100 bg-white p-8 text-center shadow">
-          <p className="text-sm text-gray-500">Loading your profile...</p>
-        </div>
-      )}
+      {/* Tabs */}
+      <div className="flex gap-2 overflow-x-auto border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+            activeTab === 'overview'
+              ? 'border-brand text-brand'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          📊 Overview
+        </button>
+        <button
+          onClick={() => setActiveTab('purchases')}
+          className={`whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+            activeTab === 'purchases'
+              ? 'border-brand text-brand'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          🛍️ My Purchases {purchases.length > 0 && `(${purchases.length})`}
+        </button>
+      </div>
 
-      {error && !isLoading && (
-        <div className="rounded-3xl border border-red-100 bg-red-50 px-6 py-4 text-sm text-red-600 shadow">
-          {error}
-        </div>
-      )}
-
-      {profile && (
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="space-y-6 rounded-3xl border border-gray-100 bg-white p-6 shadow lg:col-span-2">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Profile Card */}
+          <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow">
+            <div className="flex items-center gap-4">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand text-3xl font-bold text-white">
+                {(user?.name || 'U')[0].toUpperCase()}
+              </div>
               <div>
-                <h2 className="text-2xl font-semibold text-gray-900">{profile.name ?? 'ReFashion Member'}</h2>
-                <p className="text-sm text-gray-600">{profile.email}</p>
-              </div>
-              {!user?.guest && (
-                <Button variant="secondary" onClick={() => setIsEditing((prev) => !prev)}>
-                  {isEditing ? 'Cancel' : 'Edit Profile'}
-                </Button>
-              )}
-            </div>
-            <div className="space-y-3">
-              <div className="rounded-2xl bg-brand-light px-4 py-3 text-sm text-brand-dark">
-                You have saved approximately <strong>{stats.co2_saved_kg}</strong> kg of CO₂ by rehoming garments.
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 text-center shadow-sm">
-                  <p className="text-2xl font-semibold text-brand">{stats.items_uploaded}</p>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Items uploaded</p>
-                </div>
-                <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 text-center shadow-sm">
-                  <p className="text-2xl font-semibold text-brand">{stats.items_sold}</p>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Items exchanged</p>
-                </div>
-                <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 text-center shadow-sm">
-                  <p className="text-2xl font-semibold text-brand">{profile.points ?? 0}</p>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Reward points</p>
-                </div>
+                <h2 className="text-2xl font-semibold text-gray-900">{user?.name || 'ReFashion Member'}</h2>
+                <p className="text-sm text-gray-600">{user?.email || 'user@refashion.app'}</p>
               </div>
             </div>
-            {isEditing && (
-              <form onSubmit={handleSubmit} className="mt-6 grid gap-4 border-t border-gray-100 pt-6">
-                <div>
-                  <label htmlFor="name" className="text-sm font-medium text-gray-700">
-                    Name
-                  </label>
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    value={form.name}
-                    onChange={handleChange}
-                    className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="email" className="text-sm font-medium text-gray-700">
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={form.email}
-                    onChange={handleChange}
-                    className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="location" className="text-sm font-medium text-gray-700">
-                    Location
-                  </label>
-                  <input
-                    id="location"
-                    name="location"
-                    type="text"
-                    value={form.location}
-                    onChange={handleChange}
-                    className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="bio" className="text-sm font-medium text-gray-700">
-                    Bio
-                  </label>
-                  <textarea
-                    id="bio"
-                    name="bio"
-                    rows={3}
-                    value={form.bio}
-                    onChange={handleChange}
-                    className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                  />
-                </div>
-                <Button type="submit" size="lg" className="justify-self-start">
-                  Save Changes
+          </div>
+
+          {/* Activity Stats */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 text-center shadow-sm">
+              <p className="text-2xl font-semibold text-green-600">{recycles}</p>
+              <p className="text-xs uppercase tracking-wide text-gray-500">♻️ Recycled</p>
+            </div>
+            <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 text-center shadow-sm">
+              <p className="text-2xl font-semibold text-red-600">{donations}</p>
+              <p className="text-xs uppercase tracking-wide text-gray-500">❤️ Donated</p>
+            </div>
+            <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 text-center shadow-sm">
+              <p className="text-2xl font-semibold text-blue-600">{resells}</p>
+              <p className="text-xs uppercase tracking-wide text-gray-500">💰 Resold</p>
+            </div>
+            <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 text-center shadow-sm">
+              <p className="text-2xl font-semibold text-purple-600">{listings}</p>
+              <p className="text-xs uppercase tracking-wide text-gray-500">📝 Listed</p>
+            </div>
+          </div>
+
+          {/* Points and Purchases */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 text-center shadow-sm">
+              <p className="text-2xl font-semibold text-brand">{points}</p>
+              <p className="text-xs uppercase tracking-wide text-gray-500">💎 Reward Points</p>
+            </div>
+            <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 text-center shadow-sm">
+              <p className="text-2xl font-semibold text-orange-600">{purchases.length}</p>
+              <p className="text-xs uppercase tracking-wide text-gray-500">🛍️ Purchases</p>
+            </div>
+          </div>
+
+          {/* Impact Message */}
+          <div className="rounded-2xl bg-brand-light px-4 py-3 text-sm text-brand-dark">
+            You have saved approximately <strong>{history.length * 2}</strong> kg of CO₂ by rehoming garments.
+          </div>
+        </div>
+      )}
+
+      {/* Purchases Tab */}
+      {activeTab === 'purchases' && (
+        <div className="space-y-6">
+          {/* Purchase Stats */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl bg-purple-50 p-6 text-center">
+              <p className="text-3xl font-bold text-purple-600">{purchases.length}</p>
+              <p className="mt-1 text-sm text-gray-600">Total Purchases</p>
+            </div>
+            <div className="rounded-2xl bg-red-50 p-6 text-center">
+              <p className="text-3xl font-bold text-red-600">{totalSpent}</p>
+              <p className="mt-1 text-sm text-gray-600">Points Spent</p>
+            </div>
+            <div className="rounded-2xl bg-green-50 p-6 text-center">
+              <p className="text-3xl font-bold text-green-600">₹{(totalSpent * 0.1).toFixed(2)}</p>
+              <p className="mt-1 text-sm text-gray-600">Total Value</p>
+            </div>
+          </div>
+
+          {/* Purchases List */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900">Purchase History</h2>
+              <Button variant="secondary" size="sm" onClick={() => navigate('/marketplace')}>
+                Shop More
+              </Button>
+            </div>
+
+            {purchases.length === 0 ? (
+              <div className="py-12 text-center">
+                <span className="text-6xl">🛍️</span>
+                <p className="mt-4 text-lg font-semibold text-gray-900">No purchases yet</p>
+                <p className="mt-2 text-sm text-gray-600">
+                  Start shopping in the marketplace with your points!
+                </p>
+                <Button className="mt-4" onClick={() => navigate('/marketplace')}>
+                  Browse Marketplace
                 </Button>
-              </form>
-            )}
-            {successMessage && (
-              <div className="rounded-2xl bg-brand-light px-4 py-3 text-sm text-brand-dark">
-                {successMessage}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {purchases.slice().reverse().map((purchase) => (
+                  <div
+                    key={purchase.id}
+                    className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-4 transition hover:bg-gray-100"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl">🛍️</span>
+                        <div>
+                          <p className="font-medium text-gray-900">{purchase.description}</p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(purchase.timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-lg font-semibold text-red-600">
+                        -{purchase.points} pts
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        ≈ ₹{(purchase.points * 0.1).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
-          <aside className="space-y-6 rounded-3xl border border-gray-100 bg-white p-6 shadow">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Sustainability tips</h3>
-              <ul className="mt-3 space-y-2 text-sm text-gray-600">
-                <li>• Repair garments before replacing them.</li>
-                <li>• Prefer natural fibers and timeless cuts.</li>
-                <li>• Share care instructions with new owners.</li>
-              </ul>
-            </div>
-            <div className="rounded-2xl bg-brand-light px-4 py-3 text-sm text-brand-dark">
-              Need to update more details? Reach us at support@refashion.app and we will assist you.
-            </div>
-          </aside>
+
+          {/* Shopping Tips */}
+          <div className="rounded-2xl border border-brand/30 bg-brand-light p-6">
+            <h3 className="text-lg font-semibold text-brand-dark">💡 Shopping Tips</h3>
+            <ul className="mt-3 space-y-2 text-sm text-brand-dark">
+              <li>• Earn more points by uploading and recycling items</li>
+              <li>• Check marketplace daily for new arrivals</li>
+              <li>• 10 points = ₹1 shopping value</li>
+              <li>• All purchases are eco-friendly and sustainable</li>
+            </ul>
+          </div>
         </div>
       )}
     </section>
@@ -211,4 +192,3 @@ const ProfilePage = () => {
 };
 
 export default ProfilePage;
-

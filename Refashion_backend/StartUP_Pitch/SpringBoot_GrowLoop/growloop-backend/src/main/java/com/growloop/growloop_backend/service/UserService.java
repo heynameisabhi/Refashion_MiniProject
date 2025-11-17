@@ -33,10 +33,10 @@ public class UserService {
         // Create new user
         User newUser = new User();
         newUser.setFirebaseUid(firebaseUid);
-        newUser.setUserName(request.getUserName());
+        newUser.setUserName(request.getName());
         newUser.setEmail(request.getEmail());
         newUser.setPhoneNumber(request.getPhoneNumber());
-        newUser.setAddressText(request.getAddressText());
+        newUser.setAddressText(request.getAddress());
         newUser.setLatitude(request.getLatitude());
         newUser.setLongitude(request.getLongitude());
 

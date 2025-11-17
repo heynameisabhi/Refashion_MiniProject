@@ -11,6 +11,7 @@ import DetectionPage from './pages/Detection.jsx';
 import BagPage from './pages/Bag.jsx';
 import CreateListingPage from './pages/CreateListing.jsx';
 import SettingsPage from './pages/Settings.jsx';
+import RecyclerLocatorPage from './pages/RecyclerLocator.jsx';
 import useAuth from './hooks/useAuth.js';
 
 const App = () => {
@@ -38,6 +39,7 @@ const App = () => {
           <Route path="/bag" element={<BagPage />} />
           <Route path="/create-listing" element={<CreateListingPage />} />
           <Route path="/marketplace" element={<MarketplacePage />} />
+          <Route path="/recyclers" element={<RecyclerLocatorPage />} />
           <Route path="/rewards" element={<RewardsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />

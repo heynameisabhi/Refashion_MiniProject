@@ -19,15 +19,23 @@ springBootInstance.interceptors.request.use((config) => {
 
 // User Services
 export const userService = {
+  // Login user
+  login: async (credentials) => {
+    const response = await springBootInstance.post('/auth/login', credentials);
+    return response.data;
+  },
+
   // Register user
   register: async (userData) => {
-    const response = await springBootInstance.post('/users/register', userData);
+    const response = await springBootInstance.post('/auth/signup', userData);
     return response.data;
   },
 
   // Get user profile
-  getProfile: async () => {
-    const response = await springBootInstance.get('/users/profile');
+  getProfile: async (token) => {
+    const response = await springBootInstance.get('/auth/profile', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
     return response.data;
   },
 
@@ -112,6 +120,29 @@ export const itemService = {
   // Get marketplace items
   getMarketplaceItems: async () => {
     const response = await springBootInstance.get('/items/marketplace');
+    return response.data;
+  },
+};
+
+// Recycler Services
+export const recyclerService = {
+  // Get all recyclers
+  getAll: async () => {
+    const response = await springBootInstance.get('/recyclers/all');
+    return response.data;
+  },
+
+  // Get nearby recyclers
+  getNearby: async (latitude, longitude, radiusKm = 10) => {
+    const response = await springBootInstance.get('/recyclers/nearby', {
+      params: { latitude, longitude, radiusKm }
+    });
+    return response.data;
+  },
+
+  // Get verified recyclers only
+  getVerified: async () => {
+    const response = await springBootInstance.get('/recyclers/verified');
     return response.data;
   },
 };
