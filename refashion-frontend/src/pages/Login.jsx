@@ -7,7 +7,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, continueAsGuest, isAuthenticated, isLoading, error } = useAuth();
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ email: 'test@gmail.com', password: 'test' });
   const [formError, setFormError] = useState('');
 
   useEffect(() => {
@@ -68,6 +68,11 @@ const LoginPage = () => {
           <div>
             <h2 className="text-3xl font-semibold text-gray-900">Sign in to ReFashion</h2>
             <p className="mt-2 text-sm text-gray-600">Use your email to login or create a new account instantly.</p>
+            <div className="mt-3 rounded-lg bg-blue-50 p-3 text-xs text-blue-700">
+              <p className="font-semibold">Demo Credentials:</p>
+              <p>Email: test@gmail.com</p>
+              <p>Password: test</p>
+            </div>
           </div>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
@@ -115,6 +120,12 @@ const LoginPage = () => {
           <Button variant="secondary" size="lg" className="w-full" onClick={handleGuest}>
             Continue as Guest
           </Button>
+          <div className="text-center text-sm text-gray-600">
+            Don't have an account?{' '}
+            <a href="/signup" className="font-semibold text-brand hover:underline">
+              Sign Up
+            </a>
+          </div>
         </div>
       </div>
     </div>

@@ -1,33 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import ProgressBar from '../components/ProgressBar.jsx';
 import useAuth from '../hooks/useAuth.js';
+import { useRewards } from '../context/RewardsContext.jsx';
 
 const milestones = [50, 100, 200, 350, 500];
 
 const RewardsPage = () => {
-  const { user, refreshUser } = useAuth();
-  const [points, setPoints] = useState(user?.points ?? 0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  useEffect(() => {
-    const syncPoints = async () => {
-      if (!user?.guest) {
-        setIsRefreshing(true);
-        const refreshed = await refreshUser();
-        if (refreshed?.points !== undefined) {
-          setPoints(refreshed.points);
-        }
-        setIsRefreshing(false);
-      }
-    };
-    syncPoints().catch(() => setIsRefreshing(false));
-  }, [refreshUser, user]);
-
-  useEffect(() => {
-    if (user?.points !== undefined) {
-      setPoints(user.points);
-    }
-  }, [user]);
+  const { user } = useAuth();
+  const { points, history, POINTS } = useRewards();
 
   const nextMilestone = useMemo(() => {
     const upcoming = milestones.find((m) => m > points);
@@ -63,9 +43,7 @@ const RewardsPage = () => {
                 <span className="text-sm text-gray-500">pts</span>
               </div>
               <p className="mt-2 text-sm text-gray-500">
-                {isRefreshing
-                  ? 'Refreshing your progress...'
-                  : 'Earn 10 points for every successful upload.'}
+                Earn points for every action you take!
               </p>
             </div>
             <div className="rounded-3xl bg-brand-light px-6 py-4 text-sm text-brand-dark">
@@ -83,19 +61,41 @@ const RewardsPage = () => {
         </div>
         <div className="flex flex-col gap-4 rounded-3xl border border-gray-100 bg-white p-6 shadow">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">How to earn more</h2>
+            <h2 className="text-lg font-semibold text-gray-900">How to earn points</h2>
             <ul className="mt-3 space-y-2 text-sm text-gray-600">
-              <li>• Upload high-quality items weekly.</li>
-              <li>• Share your listings on social media.</li>
-              <li>• Engage with the community via swaps.</li>
+              <li>• Recycle items: <strong>+{POINTS.RECYCLE} pts</strong></li>
+              <li>• Resell items: <strong>+{POINTS.RESELL} pts</strong></li>
+              <li>• Donate items: <strong>+{POINTS.DONATION} pts</strong></li>
+              <li>• Create listing: <strong>+{POINTS.CREATE_LISTING} pts</strong></li>
             </ul>
           </div>
           <div className="rounded-2xl bg-brand-light px-4 py-3 text-sm text-brand-dark">
-            Bonus: Refer a friend and both receive +25 pts when they upload their first item.
+            💡 Tip: Create listings to earn the most points!
           </div>
         </div>
       </div>
 
+      {/* Recent Activity */}
+      {history.length > 0 && (
+        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Activity</h2>
+          <div className="space-y-3">
+            {history.slice(-10).reverse().map((activity) => (
+              <div key={activity.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{activity.description}</p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(activity.timestamp).toLocaleString()}
+                  </p>
+                </div>
+                <span className="text-sm font-semibold text-brand">+{activity.points} pts</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Milestones */}
       <div className="grid gap-4 md:grid-cols-2">
         {milestones.map((milestone) => {
           const achieved = points >= milestone;

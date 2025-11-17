@@ -9,6 +9,7 @@ const navItems = [
   { to: '/marketplace', label: 'Marketplace' },
   { to: '/rewards', label: 'Rewards' },
   { to: '/profile', label: 'Profile' },
+  { to: '/settings', label: 'Settings' },
 ];
 
 const Navbar = () => {

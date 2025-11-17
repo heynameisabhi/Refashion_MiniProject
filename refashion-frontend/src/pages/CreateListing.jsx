@@ -2,11 +2,13 @@ import { useCallback, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Button from '../components/Button.jsx';
 import { useBag } from '../hooks/useBag.js';
+import { useRewards } from '../context/RewardsContext.jsx';
 
 const CreateListingPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { removeFromBag } = useBag();
+  const { addPoints } = useRewards();
   const fileInputRef = useRef(null);
 
   // Get the item from navigation state
@@ -75,6 +77,16 @@ const CreateListingPage = () => {
         detectedClass: bagItem?.detectedClass,
       };
 
+      // Get user ID
+      const storedUser = localStorage.getItem('refashion_user');
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const userId = user?.id || user?.email || 'guest';
+
+      // Add user info to listing
+      listing.userId = userId;
+      listing.userName = user?.name || 'Anonymous';
+      listing.userEmail = user?.email || '';
+
       // Get existing listings
       const existingListings = JSON.parse(localStorage.getItem('marketplace_listings') || '[]');
       existingListings.push(listing);
@@ -84,6 +96,10 @@ const CreateListingPage = () => {
       if (bagItem?.id) {
         removeFromBag('resell', bagItem.id);
       }
+
+      // Award points for creating listing
+      const pointsEarned = addPoints('CREATE_LISTING', `Created listing: ${formData.title}`);
+      console.log(`🎉 You earned ${pointsEarned} points for creating a listing!`);
 
       // Navigate to marketplace
       navigate('/marketplace', { state: { message: 'Listing created successfully!' } });

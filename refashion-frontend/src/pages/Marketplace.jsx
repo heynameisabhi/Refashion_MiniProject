@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../api/axiosConfig.js';
+import { itemService } from '../api/springBootService.js';
 import ItemCard from '../components/ItemCard.jsx';
 import Button from '../components/Button.jsx';
 import { useBag } from '../hooks/useBag.js';
@@ -18,20 +19,42 @@ const MarketplacePage = () => {
       setIsLoading(true);
       setError('');
       try {
-        // Try to fetch from backend first
+        // Get current user
+        const storedUser = localStorage.getItem('refashion_user');
+        const currentUser = storedUser ? JSON.parse(storedUser) : null;
+        const isGuest = !currentUser || currentUser.guest;
+
+        // Get local listings
+        let localListings = JSON.parse(localStorage.getItem('marketplace_listings') || '[]');
+        
+        // Filter listings based on user type
+        if (!isGuest) {
+          // Logged-in users: exclude guest listings
+          localListings = localListings.filter(item => {
+            const itemUserId = item.userId || 'guest';
+            return itemUserId !== 'guest' && !itemUserId.includes('guest');
+          });
+        }
+        // Guests see all listings (including their own and other users')
+        
+        // Try to fetch from Spring Boot backend
         try {
-          const { data } = await axiosInstance.get('/get_items');
-          const backendItems = Array.isArray(data) ? data : data?.items ?? [];
+          const response = await itemService.getMarketplaceItems();
+          const backendItems = response.success ? response.data : [];
           
-          // Get local listings
-          const localListings = JSON.parse(localStorage.getItem('marketplace_listings') || '[]');
-          
-          // Combine both
+          // Combine local and backend items
           setItems([...localListings, ...backendItems]);
         } catch (err) {
-          // If backend fails, just use local listings
-          const localListings = JSON.parse(localStorage.getItem('marketplace_listings') || '[]');
-          setItems(localListings);
+          console.log('Spring Boot backend not available, using local items only');
+          // If Spring Boot backend fails, try FastAPI backend
+          try {
+            const { data } = await axiosInstance.get('/get_items');
+            const fastApiItems = Array.isArray(data) ? data : data?.items ?? [];
+            setItems([...localListings, ...fastApiItems]);
+          } catch (fastApiErr) {
+            // If both backends fail, just use local listings
+            setItems(localListings);
+          }
         }
       } catch (err) {
         const message = 'Unable to load marketplace items.';
