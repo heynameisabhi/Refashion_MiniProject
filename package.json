@@ -1,0 +1,15 @@
+{
+  "name": "refashion-webapp",
+  "version": "1.0.0",
+  "description": "Refashion WebApp - Root runner for all services",
+  "scripts": {
+    "dev:all": "concurrently --names \"FastAPI,SpringBoot,Frontend\" --prefix-colors \"cyan.bold,yellow.bold,green.bold\" \"npm:dev:fastapi\" \"npm:dev:spring\" \"npm:dev:frontend\"",
+    "dev:fastapi": "cd FastApi_For_Refashion && python -m uvicorn main:app --port 8000 --reload",
+    "dev:spring": "cd Refashion_backend\\StartUP_Pitch\\SpringBoot_GrowLoop\\growloop-backend && mvnw.cmd spring-boot:run",
+    "dev:frontend": "npm run dev --prefix refashion-frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
+
